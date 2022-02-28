@@ -10,12 +10,21 @@ if(NOT SoapySDR_FOUND)
 endif()
 
 ########################################################################
+# Find dependencies
+########################################################################
+find_package(Volk REQUIRED)
+
+########################################################################
 # Build SoapySDR SpyServer support module
 ########################################################################
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/sdrpp)
+
+set(libraries Volk::volk)
 
 if(WIN32)
-    set(libraries
+    list(APPEND libraries
         wsock32
         ws2_32)
 endif()
@@ -24,6 +33,9 @@ SOAPY_SDR_MODULE_UTIL(
     TARGET SpyServerSupport
     SOURCES
         Registration.cpp
+
+        sdrpp/spyserver_client.cpp
+        sdrpp/utils/networking.cpp
     LIBRARIES
         ${libraries}
 )
