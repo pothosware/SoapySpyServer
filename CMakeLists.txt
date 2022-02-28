@@ -33,6 +33,7 @@ SOAPY_SDR_MODULE_UTIL(
     TARGET SpyServerSupport
     SOURCES
         Registration.cpp
+        Settings.cpp
 
         sdrpp/spyserver_client.cpp
         sdrpp/utils/networking.cpp
