@@ -66,6 +66,13 @@ namespace spyserver {
         return deviceInfoAvailable;
     }
 
+    bool SpyServerClientClass::waitForClientSync(int timeoutMS) {
+        std::unique_lock<std::mutex> lck(clientSyncMtx);
+        auto now = std::chrono::system_clock::now();
+        clientSyncCnd.wait_until(lck, now + (timeoutMS * 1ms), [this]() { return clientSyncAvailable; });
+        return clientSyncAvailable;
+    }
+
     void SpyServerClientClass::sendCommand(uint32_t command, void* data, int len) {
         SpyServerCommandHeader* hdr = (SpyServerCommandHeader*)writeBuf;
         hdr->CommandType = command;
@@ -131,6 +138,15 @@ namespace spyserver {
                 _this->deviceInfoAvailable = true;
             }
             _this->deviceInfoCnd.notify_all();
+        }
+        else if (mtype == SPYSERVER_MSG_TYPE_CLIENT_SYNC) {
+            {
+                std::lock_guard<std::mutex> lck(_this->clientSyncMtx);
+                SpyServerClientSync* _clientSync = (SpyServerClientSync*)_this->readBuf;
+                _this->clientSync = *_clientSync;
+                _this->clientSyncAvailable = true;
+            }
+            _this->clientSyncCnd.notify_all();
         }
         else if (mtype == SPYSERVER_MSG_TYPE_UINT8_IQ) {
             int sampCount = _this->receivedHeader.BodySize / (sizeof(uint8_t) * 2);

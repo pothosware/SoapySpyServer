@@ -51,8 +51,7 @@ static std::vector<SoapySDR::Kwargs> findSpyServerClient(const SoapySDR::Kwargs 
  **********************************************************************/
 static SoapySDR::Device *makeSpyServerClient(const SoapySDR::Kwargs &args)
 {
-    (void)args;
-    return nullptr;
+    return new SoapySpyServerClient(args);
 }
 
 /***********************************************************************

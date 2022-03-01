@@ -8,6 +8,8 @@
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Types.hpp>
 
+#include <string>
+
 struct SoapySpyServerStream
 {
 };
@@ -16,7 +18,7 @@ class SoapySpyServerClient: public SoapySDR::Device
 {
 public:
     SoapySpyServerClient(const SoapySDR::Kwargs &args);
-    virtual ~SoapySpyServerClient(void);
+    virtual ~SoapySpyServerClient(void) = default;
 
     static std::string ParamsToSpyServerURL(
         const std::string &host,
@@ -28,15 +30,15 @@ public:
      * Identification API
      ******************************************************************/
 
-    /*
     std::string getDriverKey(void) const;
 
     std::string getHardwareKey(void) const;
 
     SoapySDR::Kwargs getHardwareInfo(void) const;
-    */
 
 private:
+    std::string _spyServerURL;
+
     spyserver::SpyServerClient _sdrppClient;
     dsp::stream<dsp::complex_t> _sdrppStream;
 };

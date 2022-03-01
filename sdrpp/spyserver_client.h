@@ -11,6 +11,7 @@ namespace spyserver {
         ~SpyServerClientClass();
 
         bool waitForDevInfo(int timeoutMS);
+        bool waitForClientSync(int timeoutMS);
 
         void startStream();
         void stopStream();
@@ -23,6 +24,7 @@ namespace spyserver {
         int computeDigitalGain(int serverBits, int deviceGain, int decimationId);
 
         SpyServerDeviceInfo devInfo;
+        SpyServerClientSync clientSync;
 
     private:
         void sendCommand(uint32_t command, void* data, int len);
@@ -40,6 +42,10 @@ namespace spyserver {
         bool deviceInfoAvailable = false;
         std::mutex deviceInfoMtx;
         std::condition_variable deviceInfoCnd;
+
+        bool clientSyncAvailable = false;
+        std::mutex clientSyncMtx;
+        std::condition_variable clientSyncCnd;
 
         SpyServerMessageHeader receivedHeader;
 
