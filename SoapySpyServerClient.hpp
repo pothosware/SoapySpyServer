@@ -8,12 +8,16 @@
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Types.hpp>
 
+#include <atomic>
 #include <cassert>
+#include <mutex>
 #include <string>
 #include <utility>
 
 struct SoapySpyServerStream
 {
+    std::atomic_bool active{false};
+    std::atomic_size_t directAccessBuffer{0}; // Null if not active
 };
 
 class SoapySpyServerClient: public SoapySDR::Device
@@ -46,6 +50,41 @@ public:
     size_t getNumChannels(const int direction) const;
 
     SoapySDR::Kwargs getChannelInfo(const int direction, const size_t channel) const;
+
+    /*******************************************************************
+     * Stream API
+     ******************************************************************/
+
+    std::vector<std::string> getStreamFormats(const int direction, const size_t channel) const;
+
+    SoapySDR::Stream *setupStream(
+        const int direction,
+        const std::string &format,
+        const std::vector<size_t> &channels,
+        const SoapySDR::Kwargs &args);
+
+    void closeStream(SoapySDR::Stream *stream);
+
+    size_t getStreamMTU(SoapySDR::Stream *stream) const;
+
+    int activateStream(
+        SoapySDR::Stream *stream,
+        const int flags,
+        const long long timeNs,
+        const size_t numElems);
+
+    int deactivateStream(
+        SoapySDR::Stream *stream,
+        const int flags,
+        const long long timeNs);
+
+    int readStream(
+        SoapySDR::Stream *stream,
+        void * const *buffs,
+        const size_t numElems,
+        int &flags,
+        long long &timeNs,
+        const long timeoutUs);
 
     /*******************************************************************
      * Antenna API
@@ -102,6 +141,9 @@ private:
 
     double _sampleRate{0.0};
     std::vector<std::pair<uint32_t, double>> _sampleRates;
+
+    std::unique_ptr<SoapySpyServerStream> _stream;
+    mutable std::mutex _streamMutex;
 
     //
     // Methods

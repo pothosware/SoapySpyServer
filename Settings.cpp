@@ -389,15 +389,19 @@ double SoapySpyServerClient::getSampleRate(const int direction, const size_t cha
 
 std::vector<double> SoapySpyServerClient::listSampleRates(const int direction, const size_t channel) const
 {
-    std::vector<double> sampleRates;
-    std::transform(
-        _sampleRates.begin(),
-        _sampleRates.end(),
-        std::back_inserter(sampleRates),
-        [](const std::pair<uint32_t, double> &ratePair)
-        {
-            return ratePair.second;
-        });
+    if((direction == SOAPY_SDR_RX) and (channel == 0))
+    {
+        std::vector<double> sampleRates;
+        std::transform(
+            _sampleRates.begin(),
+            _sampleRates.end(),
+            std::back_inserter(sampleRates),
+            [](const std::pair<uint32_t, double> &ratePair)
+            {
+                return ratePair.second;
+            });
 
-    return sampleRates;
+        return sampleRates;
+    }
+    else return SoapySDR::Device::listSampleRates(direction, channel);
 }

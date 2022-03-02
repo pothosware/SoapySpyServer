@@ -34,6 +34,7 @@ SOAPY_SDR_MODULE_UTIL(
     SOURCES
         Registration.cpp
         Settings.cpp
+        Streaming.cpp
 
         sdrpp/spyserver_client.cpp
         sdrpp/utils/networking.cpp
