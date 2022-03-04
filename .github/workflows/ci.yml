@@ -50,6 +50,7 @@ jobs:
           - uses: actions/checkout@v2
           - name: Install dependencies
             run: |
+                sudo apt -y install libvolk2-dev
                 cd ${{runner.workspace}}
 
                 # Build against earliest supported SoapySDR
@@ -110,15 +111,9 @@ jobs:
             INSTALL_PREFIX: /usr/local
         steps:
           - uses: actions/checkout@v2
-          - name: Install SoapySDR
+          - name: Install dependencies
             run: |
-                # Build against earliest supported SoapySDR
-                git clone https://github.com/pothosware/SoapySDR -b soapy-sdr-0.7.0
-                mkdir SoapySDR/build
-                cd SoapySDR/build
-                cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DENABLE_PYTHON=OFF -DENABLE_PYTHON3=OFF ..
-                make
-                sudo make install
+                brew install soapysdr volk
           - name: Build SoapySpyServer
             run: |
                 mkdir ${{github.workspace}}/build
@@ -137,6 +132,20 @@ jobs:
             matrix:
                 # Note: keeping cmake_config general enough for non-MSVC later
                 include:
+                    - cmake_config: -G "Visual Studio 14 2015" -A "Win32"
+                      arch: win32
+                      build_type: Release
+                    - cmake_config: -G "Visual Studio 14 2015" -A "Win32"
+                      arch: win32
+                      build_type: Debug
+
+                    - cmake_config: -G "Visual Studio 14 2015" -A "x64"
+                      arch: x64
+                      build_type: Release
+                    - cmake_config: -G "Visual Studio 14 2015" -A "x64"
+                      arch: x64
+                      build_type: Debug
+
                       # Note: skipping VS2017, possible bugginess in parallel installs
 
                     - cmake_config: -G "Visual Studio 16 2019" -A "Win32"
@@ -169,13 +178,22 @@ jobs:
           - uses: ilammy/msvc-dev-cmd@v1
             with:
                 arch: ${{matrix.arch}}
-          - name: Install SoapySDR
+          - name: Install dependencies
             run: |
                 # Build against earliest supported SoapySDR
                 git clone https://github.com/pothosware/SoapySDR -b soapy-sdr-0.7.0
                 mkdir SoapySDR\build
                 cd SoapySDR\build
                 cmake ${{matrix.cmake_config}} -DENABLE_PYTHON=OFF -DENABLE_PYTHON3=OFF -DCMAKE_INSTALL_PREFIX="$Env:INSTALL_PREFIX" -DCMAKE_BUILD_TYPE=${{matrix.build_type}} ..
+                cmake --build . --config ${{matrix.build_type}}
+                cmake --install . --config ${{matrix.build_type}}
+
+                # Build against recent enough VOLK
+                cd ${{github.workspace}}
+                git clone https://github.com/gnuradio/volk -b v2.5.1
+                mkdir volk\build
+                cd volk\build
+                cmake ${{matrix.cmake_config}} -DCMAKE_INSTALL_PREFIX="$Env:INSTALL_PREFIX" -DCMAKE_BUILD_TYPE=${{matrix.build_type}} ..
                 cmake --build . --config ${{matrix.build_type}}
                 cmake --install . --config ${{matrix.build_type}}
           - name: Build SoapySpyServer
