@@ -1,0 +1,191 @@
+name: CI
+on: [push, pull_request]
+jobs:
+    linux-ci:
+        name: Linux
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - cc: gcc-9
+                      cxx: g++-9
+                      build_type: Release
+                    - cc: gcc-9
+                      cxx: g++-9
+                      build_type: Debug
+
+                    - cc: gcc-10
+                      cxx: g++-10
+                      build_type: Release
+                    - cc: gcc-10
+                      cxx: g++-10
+                      build_type: Debug
+
+                    - cc: clang-10
+                      cxx: clang++-10
+                      build_type: Release
+                    - cc: clang-10
+                      cxx: clang++-10
+                      build_type: Debug
+
+                    - cc: clang-11
+                      cxx: clang++-11
+                      build_type: Release
+                    - cc: clang-11
+                      cxx: clang++-11
+                      build_type: Debug
+
+                    - cc: clang-12
+                      cxx: clang++-12
+                      build_type: Release
+                    - cc: clang-12
+                      cxx: clang++-12
+                      build_type: Debug
+        env:
+            CC: ${{matrix.cc}}
+            CXX: ${{matrix.cxx}}
+            INSTALL_PREFIX: /usr/local
+        steps:
+          - uses: actions/checkout@v2
+          - name: Install dependencies
+            run: |
+                cd ${{runner.workspace}}
+
+                # Build against earliest supported SoapySDR
+                git clone https://github.com/pothosware/SoapySDR -b soapy-sdr-0.7.0
+                mkdir SoapySDR/build
+                cd SoapySDR/build
+                cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DENABLE_PYTHON=OFF -DENABLE_PYTHON3=OFF ..
+                make
+                sudo make install
+                sudo ldconfig
+          - name: Build SoapySpyServer
+            run: |
+                mkdir ${{github.workspace}}/build
+                cd ${{github.workspace}}/build
+                cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} ${{github.workspace}}
+                make
+                sudo make install
+          - name: Test module registration
+            run: |
+                SoapySDRUtil --check=spysever
+    osx-ci:
+        name: OS X
+        runs-on: macos-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - cc: gcc-9
+                      cxx: g++-9
+                      build_type: Release
+                    - cc: gcc-9
+                      cxx: g++-9
+                      build_type: Debug
+
+                    - cc: gcc-10
+                      cxx: g++-10
+                      build_type: Release
+                    - cc: gcc-10
+                      cxx: g++-10
+                      build_type: Debug
+
+                    - cc: gcc-11
+                      cxx: g++-11
+                      build_type: Release
+                    - cc: gcc-11
+                      cxx: g++-11
+                      build_type: Debug
+
+                    - cc: clang
+                      cxx: clang++
+                      build_type: Release
+                    - cc: clang
+                      cxx: clang++
+                      build_type: Debug
+        env:
+            CC: ${{matrix.cc}}
+            CXX: ${{matrix.cxx}}
+            INSTALL_PREFIX: /usr/local
+        steps:
+          - uses: actions/checkout@v2
+          - name: Install SoapySDR
+            run: |
+                # Build against earliest supported SoapySDR
+                git clone https://github.com/pothosware/SoapySDR -b soapy-sdr-0.7.0
+                mkdir SoapySDR/build
+                cd SoapySDR/build
+                cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DENABLE_PYTHON=OFF -DENABLE_PYTHON3=OFF ..
+                make
+                sudo make install
+          - name: Build SoapySpyServer
+            run: |
+                mkdir ${{github.workspace}}/build
+                cd ${{github.workspace}}/build
+                cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} ${{github.workspace}}
+                make
+                sudo make install
+          - name: Test module registration
+            run: |
+                SoapySDRUtil --check=spyserver
+    windows-ci:
+        name: Windows
+        runs-on: windows-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                # Note: keeping cmake_config general enough for non-MSVC later
+                include:
+                      # Note: skipping VS2017, possible bugginess in parallel installs
+
+                    - cmake_config: -G "Visual Studio 16 2019" -A "Win32"
+                      arch: win32
+                      build_type: Release
+                      spyserver_vs_version: 2019
+                      spyserver_arch: x86
+
+                    - cmake_config: -G "Visual Studio 16 2019" -A "Win32"
+                      arch: win32
+                      build_type: Debug
+                      spyserver_vs_version: 2019
+                      spyserver_arch: x86
+
+                    - cmake_config: -G "Visual Studio 16 2019" -A "x64"
+                      arch: x64
+                      build_type: Release
+                      spyserver_vs_version: 2019
+                      spyserver_arch: x64
+
+                    - cmake_config: -G "Visual Studio 16 2019" -A "x64"
+                      arch: x64
+                      build_type: Debug
+                      spyserver_vs_version: 2019
+                      spyserver_arch: x64
+        env:
+            INSTALL_PREFIX: 'C:\Program Files\SoapySDR'
+        steps:
+          - uses: actions/checkout@v2
+          - uses: ilammy/msvc-dev-cmd@v1
+            with:
+                arch: ${{matrix.arch}}
+          - name: Install SoapySDR
+            run: |
+                # Build against earliest supported SoapySDR
+                git clone https://github.com/pothosware/SoapySDR -b soapy-sdr-0.7.0
+                mkdir SoapySDR\build
+                cd SoapySDR\build
+                cmake ${{matrix.cmake_config}} -DENABLE_PYTHON=OFF -DENABLE_PYTHON3=OFF -DCMAKE_INSTALL_PREFIX="$Env:INSTALL_PREFIX" -DCMAKE_BUILD_TYPE=${{matrix.build_type}} ..
+                cmake --build . --config ${{matrix.build_type}}
+                cmake --install . --config ${{matrix.build_type}}
+          - name: Build SoapySpyServer
+            run: |
+                mkdir ${{github.workspace}}/build
+                cd ${{github.workspace}}/build
+                cmake ${{matrix.cmake_config}} -DCMAKE_INSTALL_PREFIX="$Env:INSTALL_PREFIX" -DCMAKE_BUILD_TYPE=${{matrix.build_type}} ..
+                cmake --build . --config ${{matrix.build_type}}
+                cmake --install . --config ${{matrix.build_type}}
+          - name: Test module registration
+            run: |
+                $Env:PATH += ";$Env:INSTALL_PREFIX\bin"
+                SoapySDRUtil --check=spyserver
