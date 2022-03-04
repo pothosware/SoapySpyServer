@@ -19,7 +19,8 @@ find_package(Volk REQUIRED)
 ########################################################################
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/sdrpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/SDRPlusPlus
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/ThreadSafeQueue)
 
 set(libraries Volk::volk)
 
@@ -36,8 +37,8 @@ SOAPY_SDR_MODULE_UTIL(
         Settings.cpp
         Streaming.cpp
 
-        sdrpp/spyserver_client.cpp
-        sdrpp/utils/networking.cpp
+        3rdparty/SDRPlusPlus/spyserver_client.cpp
+        3rdparty/SDRPlusPlus/utils/networking.cpp
     LIBRARIES
         ${libraries}
 )

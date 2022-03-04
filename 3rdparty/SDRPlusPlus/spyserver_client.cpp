@@ -5,13 +5,10 @@
 using namespace std::chrono_literals;
 
 namespace spyserver {
-    SpyServerClientClass::SpyServerClientClass(net::Conn conn, dsp::stream<dsp::complex_t>* out) {
+    SpyServerClientClass::SpyServerClientClass(net::Conn conn, DSPComplexBufferQueue& out): outputQueue(out) {
         readBuf = new uint8_t[SPYSERVER_MAX_MESSAGE_BODY_SIZE];
         writeBuf = new uint8_t[SPYSERVER_MAX_MESSAGE_BODY_SIZE];
         client = std::move(conn);
-        output = out;
-
-        output->clearWriteStop();
 
         sendHandshake("SoapySDR");
 
@@ -25,17 +22,14 @@ namespace spyserver {
     }
 
     void SpyServerClientClass::startStream() {
-        output->clearWriteStop();
         setSetting(SPYSERVER_SETTING_STREAMING_ENABLED, true);
     }
 
     void SpyServerClientClass::stopStream() {
-        output->stopWriter();
         setSetting(SPYSERVER_SETTING_STREAMING_ENABLED, false);
     }
 
     void SpyServerClientClass::close() {
-        output->stopWriter();
         client->close();
     }
 
@@ -150,19 +144,21 @@ namespace spyserver {
         }
         else if (mtype == SPYSERVER_MSG_TYPE_UINT8_IQ) {
             int sampCount = _this->receivedHeader.BodySize / (sizeof(uint8_t) * 2);
+            volk::vector<dsp::complex_t> output(sampCount);
             float gain = pow(10, (double)mflags / 20.0);
             float scale = 1.0f / (gain * 128.0f);
             for (int i = 0; i < sampCount; i++) {
-                _this->output->writeBuf[i].re = ((float)_this->readBuf[(2 * i)] - 128.0f) * scale;
-                _this->output->writeBuf[i].im = ((float)_this->readBuf[(2 * i) + 1] - 128.0f) * scale;
+                output[i].re = ((float)_this->readBuf[(2 * i)] - 128.0f) * scale;
+                output[i].im = ((float)_this->readBuf[(2 * i) + 1] - 128.0f) * scale;
             }
-            _this->output->swap(sampCount);
+            _this->outputQueue.enqueue(std::move(output));
         }
         else if (mtype == SPYSERVER_MSG_TYPE_INT16_IQ) {
             int sampCount = _this->receivedHeader.BodySize / (sizeof(int16_t) * 2);
+            volk::vector<dsp::complex_t> output(sampCount);
             float gain = pow(10, (double)mflags / 20.0);
-            volk_16i_s32f_convert_32f((float*)_this->output->writeBuf, (int16_t*)_this->readBuf, 32768.0 * gain, sampCount * 2);
-            _this->output->swap(sampCount);
+            volk_16i_s32f_convert_32f((float*)output.data(), (int16_t*)_this->readBuf, 32768.0 * gain, sampCount * 2);
+            _this->outputQueue.enqueue(std::move(output));
         }
         else if (mtype == SPYSERVER_MSG_TYPE_INT24_IQ) {
             printf("ERROR: IQ format not supported\n");
@@ -170,15 +166,16 @@ namespace spyserver {
         }
         else if (mtype == SPYSERVER_MSG_TYPE_FLOAT_IQ) {
             int sampCount = _this->receivedHeader.BodySize / sizeof(dsp::complex_t);
+            volk::vector<dsp::complex_t> output(sampCount);
             float gain = pow(10, (double)mflags / 20.0);
-            volk_32f_s32f_multiply_32f((float*)_this->output->writeBuf, (float*)_this->readBuf, gain, sampCount * 2);
-            _this->output->swap(sampCount);
+            volk_32f_s32f_multiply_32f((float*)output.data(), (float*)_this->readBuf, gain, sampCount * 2);
+            _this->outputQueue.enqueue(std::move(output));
         }
 
         _this->client->readAsync(sizeof(SpyServerMessageHeader), (uint8_t*)&_this->receivedHeader, dataHandler, _this);
     }
 
-    SpyServerClient connect(std::string host, uint16_t port, dsp::stream<dsp::complex_t>* out) {
+    SpyServerClient connect(std::string host, uint16_t port, DSPComplexBufferQueue& out) {
         net::Conn conn = net::connect(host, port);
         if (!conn) {
             return NULL;

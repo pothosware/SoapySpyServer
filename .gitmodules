@@ -1,0 +1,3 @@
+[submodule "3rdparty/ThreadSafeQueue"]
+	path = 3rdparty/ThreadSafeQueue
+	url = https://github.com/CodePi/ThreadSafeQueue

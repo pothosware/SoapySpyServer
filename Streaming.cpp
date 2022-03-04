@@ -9,6 +9,7 @@
 #include <SoapySDR/Formats.h>
 
 #include <cassert>
+#include <cstring>
 #include <stdexcept>
 
 std::vector<std::string> SoapySpyServerClient::getStreamFormats(const int direction, const size_t channel) const
@@ -55,21 +56,6 @@ void SoapySpyServerClient::closeStream(SoapySDR::Stream *stream)
         _sdrppClient->stopStream();
 
     _stream.reset(nullptr);
-}
-
-size_t SoapySpyServerClient::getStreamMTU(SoapySDR::Stream *stream) const
-{
-    std::lock_guard<std::mutex> lock(_streamMutex);
-
-    if(not stream)
-        throw std::invalid_argument("Null stream");
-    if(stream != (SoapySDR::Stream*)_stream.get())
-        throw std::invalid_argument("Invalid stream");
-
-    // The SpyServer client asynchronously reads into a buffer that we
-    // consume here, so there's no real MTU per se, so we'll just return
-    // the stream's buffer size.
-    return STREAM_BUFFER_SIZE;
 }
 
 int SoapySpyServerClient::activateStream(
@@ -119,8 +105,8 @@ int SoapySpyServerClient::readStream(
     SoapySDR::Stream *stream,
     void * const *buffs,
     const size_t numElems,
-    int &flags,
-    long long &timeNs,
+    int &,
+    long long &,
     const long timeoutUs)
 {
     std::lock_guard<std::mutex> lock(_streamMutex);
@@ -128,11 +114,43 @@ int SoapySpyServerClient::readStream(
     // As a policy, don't throw.
     if(not stream or (stream != (SoapySDR::Stream*)_stream.get()))
         return SOAPY_SDR_NOT_SUPPORTED;
+    if(not buffs or not buffs[0])
+        return SOAPY_SDR_NOT_SUPPORTED;
     if(not _stream->active)
         return SOAPY_SDR_NOT_SUPPORTED;
 
-    // The SpyServer client asychronously writes to its buffer as
-    // it receives data.
+    // The SpyServer client asychronously adds buffers to a queue as
+    // it receives data. If we haven't consumed the entirety of the
+    // latest buffer, we'll grab the next one here.
+    if(_currentBuffer.empty())
+    {
+        const auto timeoutS = static_cast<double>(timeoutUs * 1e6);
+        if(not _bufferQueue.dequeue(timeoutS, _currentBuffer))
+            return SOAPY_SDR_TIMEOUT;
+    }
 
-    return 0;
+    assert(not _currentBuffer.empty());
+
+    static constexpr size_t elemSize = sizeof(std::complex<float>);
+
+    const auto actualNumElems = std::min(
+        numElems,
+        (_currentBuffer.size() - _startIndex));
+    assert((_startIndex + actualNumElems) <= _currentBuffer.size());
+
+    std::memcpy(
+        buffs[0],
+        &_currentBuffer[_startIndex],
+        actualNumElems * elemSize);
+
+    _startIndex += actualNumElems;
+    assert(_startIndex <= _currentBuffer.size());
+
+    if(_startIndex == _currentBuffer.size())
+    {
+        _currentBuffer.clear();
+        _startIndex = 0;
+    }
+
+    return static_cast<int>(actualNumElems);
 }

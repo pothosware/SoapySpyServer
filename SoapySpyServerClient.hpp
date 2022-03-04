@@ -8,6 +8,8 @@
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Types.hpp>
 
+#include <volk/volk_alloc.hh>
+
 #include <atomic>
 #include <cassert>
 #include <mutex>
@@ -64,8 +66,6 @@ public:
         const SoapySDR::Kwargs &args);
 
     void closeStream(SoapySDR::Stream *stream);
-
-    size_t getStreamMTU(SoapySDR::Stream *stream) const;
 
     int activateStream(
         SoapySDR::Stream *stream,
@@ -137,7 +137,10 @@ private:
     std::string _spyServerURL;
 
     spyserver::SpyServerClient _sdrppClient;
-    dsp::stream<dsp::complex_t> _sdrppStream;
+    DSPComplexBufferQueue _bufferQueue;
+
+    volk::vector<dsp::complex_t> _currentBuffer;
+    size_t _startIndex{0};
 
     double _sampleRate{0.0};
     std::vector<std::pair<uint32_t, double>> _sampleRates;

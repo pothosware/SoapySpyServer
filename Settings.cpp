@@ -96,7 +96,7 @@ SoapySpyServerClient::SoapySpyServerClient(const SoapySDR::Kwargs &args)
     _sdrppClient = spyserver::connect(
         hostIter->second,
         SoapySDR::StringToSetting<uint16_t>(portIter->second),
-        &_sdrppStream);
+        _bufferQueue);
     SoapySDR::log(
         SOAPY_SDR_INFO,
         "Waiting for device information...");

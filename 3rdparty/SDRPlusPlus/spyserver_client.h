@@ -1,13 +1,17 @@
 #pragma once
 #include <utils/networking.h>
 #include <spyserver_protocol.h>
-#include <dsp/stream.h>
 #include <dsp/types.h>
+
+#include <ThreadSafeQueue.h>
+#include <volk/volk_alloc.hh>
+
+using DSPComplexBufferQueue = codepi::ThreadSafeQueue<volk::vector<dsp::complex_t>>;
 
 namespace spyserver {
     class SpyServerClientClass {
     public:
-        SpyServerClientClass(net::Conn conn, dsp::stream<dsp::complex_t>* out);
+        SpyServerClientClass(net::Conn conn, DSPComplexBufferQueue& out);
         ~SpyServerClientClass();
 
         bool waitForDevInfo(int timeoutMS);
@@ -49,11 +53,11 @@ namespace spyserver {
 
         SpyServerMessageHeader receivedHeader;
 
-        dsp::stream<dsp::complex_t>* output;
+        DSPComplexBufferQueue& outputQueue;
     };
 
     typedef std::unique_ptr<SpyServerClientClass> SpyServerClient;
 
-    SpyServerClient connect(std::string host, uint16_t port, dsp::stream<dsp::complex_t>* out);
+    SpyServerClient connect(std::string host, uint16_t port, DSPComplexBufferQueue& out);
 
 }

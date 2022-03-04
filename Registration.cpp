@@ -24,11 +24,11 @@ static std::vector<SoapySDR::Kwargs> findSpyServerClient(const SoapySDR::Kwargs 
 
     try
     {
-        dsp::stream<dsp::complex_t> stream;
+        DSPComplexBufferQueue _;
         auto client = spyserver::connect(
             hostIter->second,
             SoapySDR::StringToSetting<uint16_t>(portIter->second),
-            &stream);
+            _);
 
         if(client and client->isOpen() and client->waitForDevInfo(1000))
         {
