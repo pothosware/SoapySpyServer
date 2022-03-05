@@ -4,14 +4,13 @@
 cmake_minimum_required(VERSION 3.1)
 project(SoapySpyServer CXX)
 
+########################################################################
+# Find dependencies
+########################################################################
 find_package(SoapySDR "0.8" NO_MODULE)
 if(NOT SoapySDR_FOUND)
     message(FATAL_ERROR "Soapy SDR development files not found...")
 endif()
-
-########################################################################
-# Find dependencies
-########################################################################
 find_package(Volk REQUIRED)
 
 ########################################################################
@@ -29,6 +28,8 @@ if(WIN32)
         wsock32
         ws2_32)
 endif()
+
+set(CMAKE_CXX_STANDARD 14)
 
 SOAPY_SDR_MODULE_UTIL(
     TARGET SpyServerSupport
