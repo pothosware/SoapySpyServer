@@ -8,6 +8,14 @@
 
 using DSPComplexBufferQueue = codepi::ThreadSafeQueue<volk::vector<dsp::complex_t>>;
 
+/*
+ * Originally written by Alexandre Rouma:
+ *  * https://github.com/AlexandreRouma/SDRPlusPlus/tree/master/source_modules/spyserver_source
+ *
+ * Adapted by Nicholas Corgan:
+ *  * Move samples into queue for caller instead of SDRPlusPlus-specific class
+ *  * Compatibility with earlier C++ standard
+ */
 namespace spyserver {
     class SpyServerClientClass {
     public:

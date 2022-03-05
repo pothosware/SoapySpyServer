@@ -3,6 +3,7 @@
 ########################################################################
 cmake_minimum_required(VERSION 3.1)
 project(SoapySpyServer CXX)
+set(CMAKE_CXX_STANDARD 14)
 
 ########################################################################
 # Find dependencies
@@ -28,8 +29,6 @@ if(WIN32)
         wsock32
         ws2_32)
 endif()
-
-set(CMAKE_CXX_STANDARD 14)
 
 SOAPY_SDR_MODULE_UTIL(
     TARGET SpyServerSupport

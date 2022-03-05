@@ -6,6 +6,7 @@
 
 ## Dependencies
 
+* C++14-compatible compiler
 * SoapySDR 0.8+ - https://github.com/pothosware/SoapySDR/wiki
 * VOLK - https://github.com/gnuradio/volk
 
