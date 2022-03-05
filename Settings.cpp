@@ -114,6 +114,7 @@ SoapySpyServerClient::SoapySpyServerClient(const SoapySDR::Kwargs &args):
 {
     assert(args.count("host"));
     assert(args.count("port"));
+    _spyServerURL = ParamsToSpyServerURL(args.at("host"), args.at("port"));
 
     if(not _sdrppClient.client->clientSync.CanControl)
         SoapySDR::logf(
@@ -136,8 +137,6 @@ SoapySpyServerClient::SoapySpyServerClient(const SoapySDR::Kwargs &args):
     // each implementation just stores the sample rate passed into the setter. We'll
     // quietly set the sample rate so we have an initial value.
     this->setSampleRate(SOAPY_SDR_RX, 0, _sampleRates[0].second);
-
-    _spyServerURL = ParamsToSpyServerURL(args.at("host"), args.at("port"));
 }
 
 /*******************************************************************
@@ -156,8 +155,7 @@ std::string SoapySpyServerClient::getHardwareKey(void) const
 
 SoapySDR::Kwargs SoapySpyServerClient::getHardwareInfo(void) const
 {
-    assert(_sdrppClient.client);
-    assert(_sdrppClient.client->isOpen());
+    _sdrppClient.syncFields();
 
     return
     {
@@ -367,13 +365,8 @@ void SoapySpyServerClient::setSampleRate(const int direction, const size_t chann
 
 double SoapySpyServerClient::getSampleRate(const int direction, const size_t channel) const
 {
-    if(validChannelParams(direction, channel))
-    {
-        _sdrppClient.syncFields();
-
-        return _sampleRate;
-    }
-    else return SoapySDR::Device::getSampleRate(direction, channel);
+    return validChannelParams(direction, channel) ? _sampleRate
+                                                  : SoapySDR::Device::getSampleRate(direction, channel);
 }
 
 std::vector<double> SoapySpyServerClient::listSampleRates(const int direction, const size_t channel) const
