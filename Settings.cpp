@@ -29,6 +29,57 @@ static inline bool almostEqual(const double lhs, const double rhs)
 // Static utility functions
 //
 
+SDRPPClient SoapySpyServerClient::makeSDRPPClient(const SoapySDR::Kwargs &args)
+{
+    auto hostIter = args.find("host");
+    if(hostIter == args.end())
+        throw std::runtime_error("SoapySpyServer: missing required key \"host\"");
+
+    auto portIter = args.find("port");
+    if(portIter == args.end())
+        throw std::runtime_error("SoapySpyServer: missing required key \"port\"");
+
+    const auto &host = hostIter->second;
+    const auto &port = portIter->second;
+
+    SDRPPClient client;
+    client.bufferQueue.reset(new DSPComplexBufferQueue);
+
+    const auto spyServerURL = ParamsToSpyServerURL(host, port);
+    SoapySDR::logf(
+        SOAPY_SDR_INFO,
+        "Connecting to %s...",
+        spyServerURL.c_str());
+    client.client = spyserver::connect(
+        hostIter->second,
+        SoapySDR::StringToSetting<uint16_t>(portIter->second),
+        *client.bufferQueue);
+
+    if(not client.client or not client.client->isOpen() or not client.syncFields())
+        throw std::runtime_error("SoapySpyServer: failed to connect to client with args: "+SoapySDR::KwargsToString(args));
+
+    if(client.client->devInfo.ForcedIQFormat != static_cast<uint32_t>(SPYSERVER_STREAM_FORMAT_INVALID))
+    {
+        switch(static_cast<SpyServerStreamFormat>(client.client->devInfo.ForcedIQFormat))
+        {
+        case SPYSERVER_STREAM_FORMAT_INT24:
+            throw std::runtime_error("Conversion from internal stream format INT24 unsupported.");
+
+        case SPYSERVER_STREAM_FORMAT_DINT4:
+            throw std::runtime_error("Conversion from internal stream format DINT4 unsupported.");
+
+        default:
+            break;
+        }
+    }
+
+    SoapySDR::log(
+        SOAPY_SDR_INFO,
+        "Ready.");
+
+    return client;
+}
+
 std::string SoapySpyServerClient::ParamsToSpyServerURL(
     const std::string &host,
     const std::string &port)
@@ -54,74 +105,29 @@ std::string SoapySpyServerClient::DeviceEnumToName(const uint32_t deviceType)
     }
 }
 
-std::string SoapySpyServerClient::FormatEnumToName(const uint32_t format)
-{
-    switch(static_cast<SpyServerStreamFormat>(format))
-    {
-    case SPYSERVER_STREAM_FORMAT_UINT8:
-        return SOAPY_SDR_CU8;
-
-    case SPYSERVER_STREAM_FORMAT_INT16:
-        return SOAPY_SDR_CS16;
-
-    case SPYSERVER_STREAM_FORMAT_FLOAT:
-        return SOAPY_SDR_CF32;
-
-    default:
-        return "Unknown";
-    }
-}
-
 //
 // Construction
 //
 
-SoapySpyServerClient::SoapySpyServerClient(const SoapySDR::Kwargs &args)
+SoapySpyServerClient::SoapySpyServerClient(const SoapySDR::Kwargs &args):
+    _sdrppClient(makeSDRPPClient(args))
 {
-    auto hostIter = args.find("host");
-    if(hostIter == args.end())
-        throw std::runtime_error("SoapySpyServer: missing required key \"host\"");
+    assert(args.count("host"));
+    assert(args.count("port"));
 
-    auto portIter = args.find("port");
-    if(portIter == args.end())
-        throw std::runtime_error("SoapySpyServer: missing required key \"port\"");
-
-    _spyServerURL = ParamsToSpyServerURL(hostIter->second, portIter->second);
-
-    SoapySDR::logf(
-        SOAPY_SDR_INFO,
-        "Connecting to %s...",
-        _spyServerURL.c_str());
-
-    _sdrppClient = spyserver::connect(
-        hostIter->second,
-        SoapySDR::StringToSetting<uint16_t>(portIter->second),
-        _bufferQueue);
-    SoapySDR::log(
-        SOAPY_SDR_INFO,
-        "Waiting for device information...");
-
-    if(not _sdrppClient or not _sdrppClient->isOpen() or not this->_syncSdrPPFields())
-        throw std::runtime_error("SoapySpyServer: failed to connect to client with args: "+SoapySDR::KwargsToString(args));
-
-    SoapySDR::log(
-        SOAPY_SDR_INFO,
-        "Ready.");
-
-    if(not _sdrppClient->clientSync.CanControl)
-        SoapySDR::log(
+    if(not _sdrppClient.client->clientSync.CanControl)
+        SoapySDR::logf(
             SOAPY_SDR_WARNING,
-            "This device only supports a limited subset of hardware control. Some setters will not work.");
-
-    // This will throw if the device forces an unsupported internal stream format.
-    (void)this->getChannelInfo(SOAPY_SDR_RX, 0);
+            "This device restricts changing gain. %s gain is set to %f.",
+            GainName.c_str(),
+            this->getGain(SOAPY_SDR_RX, 0, GainName));
 
     // Derive sample rates from associated fields.
-    for(uint32_t i = _sdrppClient->devInfo.MinimumIQDecimation;
-        i <= _sdrppClient->devInfo.DecimationStageCount;
+    for(uint32_t i = _sdrppClient.client->devInfo.MinimumIQDecimation;
+        i <= _sdrppClient.client->devInfo.DecimationStageCount;
         ++i)
     {
-        const auto rate = static_cast<double>(_sdrppClient->devInfo.MaximumSampleRate / (1 << i));
+        const auto rate = static_cast<double>(_sdrppClient.client->devInfo.MaximumSampleRate / (1 << i));
         _sampleRates.emplace_back(i, rate);
     }
     assert(not _sampleRates.empty());
@@ -130,6 +136,8 @@ SoapySpyServerClient::SoapySpyServerClient(const SoapySDR::Kwargs &args)
     // each implementation just stores the sample rate passed into the setter. We'll
     // quietly set the sample rate so we have an initial value.
     this->setSampleRate(SOAPY_SDR_RX, 0, _sampleRates[0].second);
+
+    _spyServerURL = ParamsToSpyServerURL(args.at("host"), args.at("port"));
 }
 
 /*******************************************************************
@@ -143,21 +151,18 @@ std::string SoapySpyServerClient::getDriverKey(void) const
 
 std::string SoapySpyServerClient::getHardwareKey(void) const
 {
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
-
     return _spyServerURL;
 }
 
 SoapySDR::Kwargs SoapySpyServerClient::getHardwareInfo(void) const
 {
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
+    assert(_sdrppClient.client);
+    assert(_sdrppClient.client->isOpen());
 
     return
     {
-        {"device", DeviceEnumToName(_sdrppClient->devInfo.DeviceType)},
-        {"serial", SoapySDR::SettingToString(_sdrppClient->devInfo.DeviceSerial)},
+        {"device", DeviceEnumToName(_sdrppClient.client->devInfo.DeviceType)},
+        {"serial", SoapySDR::SettingToString(_sdrppClient.client->devInfo.DeviceSerial)},
         {"protocol_version", SoapySDR::SettingToString(SPYSERVER_PROTOCOL_VERSION)},
     };
 }
@@ -173,31 +178,11 @@ size_t SoapySpyServerClient::getNumChannels(const int direction) const
 
 SoapySDR::Kwargs SoapySpyServerClient::getChannelInfo(const int direction, const size_t channel) const
 {
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
-
     SoapySDR::Kwargs channelInfo;
     if((direction == SOAPY_SDR_RX) and (channel == 0))
     {
-        this->_syncSdrPPFields();
-
-        if(_sdrppClient->devInfo.ForcedIQFormat != static_cast<uint32_t>(SPYSERVER_STREAM_FORMAT_INVALID))
-        {
-            switch(static_cast<SpyServerStreamFormat>(_sdrppClient->devInfo.ForcedIQFormat))
-            {
-            case SPYSERVER_STREAM_FORMAT_INT24:
-                throw std::runtime_error("Conversion from internal stream format INT24 unsupported.");
-
-            case SPYSERVER_STREAM_FORMAT_DINT4:
-                throw std::runtime_error("Conversion from internal stream format DINT4 unsupported.");
-
-            default:
-                channelInfo["forced_internal_format"] = FormatEnumToName(_sdrppClient->devInfo.ForcedIQFormat);
-                break;
-            }
-        }
-    
-        channelInfo["full_control"] = SoapySDR::SettingToString(_sdrppClient->clientSync.CanControl > 0);
+        _sdrppClient.syncFields();
+        channelInfo["full_control"] = SoapySDR::SettingToString(_sdrppClient.client->clientSync.CanControl > 0);
     }
     else channelInfo = SoapySDR::Device::getChannelInfo(direction, channel);
 
@@ -235,54 +220,64 @@ std::string SoapySpyServerClient::getAntenna(const int direction, const size_t c
  * Gain API
  ******************************************************************/
 
-void SoapySpyServerClient::setGain(const int direction, const size_t channel, const double value)
-{
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
+const std::string SoapySpyServerClient::GainName("Full");
 
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+std::vector<std::string> SoapySpyServerClient::listGains(const int direction, const size_t channel) const
+{
+    return ((direction == SOAPY_SDR_RX) and (channel == 0)) ? std::vector<std::string>{GainName}
+                                                            : SoapySDR::Device::listGains(direction, channel);
+}
+
+void SoapySpyServerClient::setGain(const int direction, const size_t channel, const std::string &name, const double value)
+{
+    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == GainName))
     {
-        this->_syncSdrPPFields();
-        if(_sdrppClient->clientSync.CanControl)
+        _sdrppClient.syncFields();
+        if(_sdrppClient.client->clientSync.CanControl)
         {
-            _sdrppClient->setSetting(
+            _sdrppClient.client->setSetting(
                 static_cast<uint32_t>(SPYSERVER_SETTING_GAIN),
                 static_cast<uint32_t>(value));
 
-            this->_syncSdrPPFields();
+            _sdrppClient.syncFields();
         }
         else throw std::runtime_error("This device does not allow setting gain.");
     }
     else SoapySDR::Device::setGain(direction, channel, value);
 }
 
-double SoapySpyServerClient::getGain(const int direction, const size_t channel) const
+double SoapySpyServerClient::getGain(const int direction, const size_t channel, const std::string &name) const
 {
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
-
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == GainName))
     {
-        this->_syncSdrPPFields();
+        _sdrppClient.syncFields();
 
-        return static_cast<double>(_sdrppClient->clientSync.Gain);
+        return static_cast<double>(_sdrppClient.client->clientSync.Gain);
     }
     else return SoapySDR::Device::getGain(direction, channel);
 }
 
-SoapySDR::Range SoapySpyServerClient::getGainRange(const int direction, const size_t channel) const
+SoapySDR::Range SoapySpyServerClient::getGainRange(const int direction, const size_t channel, const std::string &name) const
 {
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
-
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == GainName))
     {
-        this->_syncSdrPPFields();
+        _sdrppClient.syncFields();
 
-        return SoapySDR::Range(
-            0.0,
-            static_cast<double>(_sdrppClient->devInfo.MaximumGainIndex),
-            1.0);
+        if(_sdrppClient.client->clientSync.CanControl)
+        {
+            return SoapySDR::Range(
+                0.0,
+                static_cast<double>(_sdrppClient.client->devInfo.MaximumGainIndex),
+                1.0);
+        }
+        else
+        {
+            return SoapySDR::Range(
+                static_cast<double>(_sdrppClient.client->clientSync.Gain),
+                static_cast<double>(_sdrppClient.client->clientSync.Gain),
+                1.0);
+        }
+
     }
     else return SoapySDR::Device::getGainRange(direction, channel);
 }
@@ -291,51 +286,50 @@ SoapySDR::Range SoapySpyServerClient::getGainRange(const int direction, const si
  * Frequency API
  ******************************************************************/
 
-void SoapySpyServerClient::setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args)
-{
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
+const std::string SoapySpyServerClient::FrequencyName("RF");
 
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+void SoapySpyServerClient::setFrequency(const int direction, const size_t channel, const std::string &name, const double frequency, const SoapySDR::Kwargs &args)
+{
+    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == FrequencyName))
     {
-        _sdrppClient->setSetting(
+        _sdrppClient.client->setSetting(
             static_cast<uint32_t>(SPYSERVER_SETTING_IQ_FREQUENCY),
             static_cast<uint32_t>(frequency));
 
-        this->_syncSdrPPFields();
+        _sdrppClient.syncFields();
     }
     else SoapySDR::Device::setFrequency(direction, channel, frequency, args);
 }
 
-double SoapySpyServerClient::getFrequency(const int direction, const size_t channel) const
+double SoapySpyServerClient::getFrequency(const int direction, const size_t channel, const std::string &name) const
 {
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
-
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == FrequencyName))
     {
-        this->_syncSdrPPFields();
+        _sdrppClient.syncFields();
 
-        return static_cast<double>(_sdrppClient->clientSync.IQCenterFrequency);
+        return static_cast<double>(_sdrppClient.client->clientSync.IQCenterFrequency);
     }
-    else return SoapySDR::Device::getFrequency(direction, channel);
+    else return SoapySDR::Device::getFrequency(direction, channel, name);
 }
 
-SoapySDR::RangeList SoapySpyServerClient::getFrequencyRange(const int direction, const size_t channel) const
+std::vector<std::string> SoapySpyServerClient::listFrequencies(const int direction, const size_t channel) const
 {
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
+    return ((direction == SOAPY_SDR_RX) and (channel == 0)) ? std::vector<std::string>{FrequencyName}
+                                                            : SoapySDR::Device::listFrequencies(direction, channel);
+}
 
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+SoapySDR::RangeList SoapySpyServerClient::getFrequencyRange(const int direction, const size_t channel, const std::string &name) const
+{
+    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == FrequencyName))
     {
-        this->_syncSdrPPFields();
+        _sdrppClient.syncFields();
 
         return SoapySDR::RangeList{{
-            static_cast<double>(_sdrppClient->clientSync.MinimumIQCenterFrequency),
-            static_cast<double>(_sdrppClient->clientSync.MaximumIQCenterFrequency),
+            static_cast<double>(_sdrppClient.client->clientSync.MinimumIQCenterFrequency),
+            static_cast<double>(_sdrppClient.client->clientSync.MaximumIQCenterFrequency),
             1.0}};
     }
-    else return SoapySDR::Device::getFrequencyRange(direction, channel);
+    else return SoapySDR::Device::getFrequencyRange(direction, channel, name);
 }
 
 /*******************************************************************
@@ -344,9 +338,6 @@ SoapySDR::RangeList SoapySpyServerClient::getFrequencyRange(const int direction,
 
 void SoapySpyServerClient::setSampleRate(const int direction, const size_t channel, const double rate)
 {
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
-
     if((direction == SOAPY_SDR_RX) and (channel == 0))
     {
         auto sampleRateIter = std::find_if(
@@ -360,13 +351,13 @@ void SoapySpyServerClient::setSampleRate(const int direction, const size_t chann
         if(sampleRateIter != _sampleRates.end())
         {
             // SpyServer takes in sample rate by the decimation index.
-            _sdrppClient->setSetting(
+            _sdrppClient.client->setSetting(
                 static_cast<uint32_t>(SPYSERVER_SETTING_IQ_DECIMATION),
                 sampleRateIter->first);
 
             _sampleRate = rate;
 
-            this->_syncSdrPPFields();
+            _sdrppClient.syncFields();
         }
         else throw std::invalid_argument("Invalid sample rate: "+SoapySDR::SettingToString(rate));
     }
@@ -375,12 +366,9 @@ void SoapySpyServerClient::setSampleRate(const int direction, const size_t chann
 
 double SoapySpyServerClient::getSampleRate(const int direction, const size_t channel) const
 {
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
-
     if((direction == SOAPY_SDR_RX) and (channel == 0))
     {
-        this->_syncSdrPPFields();
+        _sdrppClient.syncFields();
 
         return _sampleRate;
     }

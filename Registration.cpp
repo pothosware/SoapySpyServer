@@ -9,6 +9,8 @@
 #include <SoapySDR/Types.hpp>
 #include <SoapySDR/Version.hpp>
 
+#include <cassert>
+
 /***********************************************************************
  * Find
  **********************************************************************/
@@ -16,30 +18,21 @@ static std::vector<SoapySDR::Kwargs> findSpyServerClient(const SoapySDR::Kwargs 
 {
     std::vector<SoapySDR::Kwargs> results;
 
-    auto hostIter = args.find("host");
-    if(hostIter == args.end()) return results;
-
-    auto portIter = args.find("port");
-    if(portIter == args.end()) return results;
-
     try
     {
-        DSPComplexBufferQueue _;
-        auto client = spyserver::connect(
-            hostIter->second,
-            SoapySDR::StringToSetting<uint16_t>(portIter->second),
-            _);
+        const auto client = SoapySpyServerClient::makeSDRPPClient(args);
+        assert(args.count("host"));
+        assert(args.count("port"));
+        assert(client.client);
+        assert(client.client->isOpen());
 
-        if(client and client->isOpen() and client->waitForDevInfo(1000))
-        {
-            results.emplace_back();
-            auto &result = results.front();
+        results.emplace_back();
+        auto &result = results.front();
 
-            const auto &devInfo = client->devInfo;
-            result["device"] = SoapySpyServerClient::DeviceEnumToName(devInfo.DeviceType);
-            result["serial"] = std::to_string(devInfo.DeviceSerial);
-            result["url"] = SoapySpyServerClient::ParamsToSpyServerURL(hostIter->second, portIter->second);
-        }
+        const auto &devInfo = client.client->devInfo;
+        result["device"] = SoapySpyServerClient::DeviceEnumToName(devInfo.DeviceType);
+        result["serial"] = std::to_string(devInfo.DeviceSerial);
+        result["url"] = SoapySpyServerClient::ParamsToSpyServerURL(args.at("host"), args.at("port"));
     }
     catch(...){}
 

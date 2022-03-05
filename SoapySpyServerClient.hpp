@@ -12,9 +12,26 @@
 
 #include <atomic>
 #include <cassert>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <utility>
+
+struct SDRPPClient
+{
+    static constexpr size_t TimeoutMs = 1000;
+
+    std::unique_ptr<DSPComplexBufferQueue> bufferQueue;
+    spyserver::SpyServerClient client;
+
+    inline bool syncFields(void) const
+    {
+        assert(client);
+        assert(client->isOpen());
+
+        return (client->waitForDevInfo(TimeoutMs) and client->waitForClientSync(TimeoutMs));
+    }
+};
 
 struct SoapySpyServerStream
 {
@@ -28,12 +45,17 @@ public:
     SoapySpyServerClient(const SoapySDR::Kwargs &args);
     virtual ~SoapySpyServerClient(void) = default;
 
+    /*******************************************************************
+     * Utility
+     ******************************************************************/
+
+    static SDRPPClient makeSDRPPClient(const SoapySDR::Kwargs &args);
+
     static std::string ParamsToSpyServerURL(
         const std::string &host,
         const std::string &port);
 
     static std::string DeviceEnumToName(const uint32_t deviceType);
-    static std::string FormatEnumToName(const uint32_t format);
 
     /*******************************************************************
      * Identification API
@@ -100,21 +122,29 @@ public:
      * Gain API
      ******************************************************************/
 
-    void setGain(const int direction, const size_t channel, const double value);
+    static const std::string GainName;
 
-    double getGain(const int direction, const size_t channel) const;
+    std::vector<std::string> listGains(const int direction, const size_t channel) const;
 
-    SoapySDR::Range getGainRange(const int direction, const size_t channel) const;
+    void setGain(const int direction, const size_t channel, const std::string &name, const double value);
+
+    double getGain(const int direction, const size_t channel, const std::string &name) const;
+
+    SoapySDR::Range getGainRange(const int direction, const size_t channel, const std::string &name) const;
 
     /*******************************************************************
      * Frequency API
      ******************************************************************/
 
-    void setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args);
+    static const std::string FrequencyName;
 
-    double getFrequency(const int direction, const size_t channel) const;
+    void setFrequency(const int direction, const size_t channel, const std::string &name, const double frequency, const SoapySDR::Kwargs &args);
 
-    SoapySDR::RangeList getFrequencyRange(const int direction, const size_t channel) const;
+    double getFrequency(const int direction, const size_t channel, const std::string &name) const;
+
+    std::vector<std::string> listFrequencies(const int direction, const size_t channel) const;
+
+    SoapySDR::RangeList getFrequencyRange(const int direction, const size_t channel, const std::string &name) const;
 
     /*******************************************************************
      * Sample Rate API
@@ -136,8 +166,7 @@ private:
 
     std::string _spyServerURL;
 
-    spyserver::SpyServerClient _sdrppClient;
-    DSPComplexBufferQueue _bufferQueue;
+    SDRPPClient _sdrppClient;
 
     volk::vector<dsp::complex_t> _currentBuffer;
     size_t _startIndex{0};
@@ -147,16 +176,4 @@ private:
 
     std::unique_ptr<SoapySpyServerStream> _stream;
     mutable std::mutex _streamMutex;
-
-    //
-    // Methods
-    //
-
-    inline bool _syncSdrPPFields(void) const
-    {
-        assert(_sdrppClient);
-        assert(_sdrppClient->isOpen());
-
-        return _sdrppClient->waitForDevInfo(SDRPP_TIMEOUT_MS) and _sdrppClient->waitForClientSync(SDRPP_TIMEOUT_MS);
-    }
 };

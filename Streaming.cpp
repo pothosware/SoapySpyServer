@@ -49,11 +49,11 @@ void SoapySpyServerClient::closeStream(SoapySDR::Stream *stream)
     if(stream != (SoapySDR::Stream*)_stream.get())
         throw std::invalid_argument("Invalid stream");
 
-    assert(_sdrppClient);
-    assert(_sdrppClient->isOpen());
+    assert(_sdrppClient.client);
+    assert(_sdrppClient.client->isOpen());
 
     if(_stream->active)
-        _sdrppClient->stopStream();
+        _sdrppClient.client->stopStream();
 
     _stream.reset(nullptr);
 }
@@ -74,7 +74,7 @@ int SoapySpyServerClient::activateStream(
     if((flags != 0) or (timeNs != 0) or (numElems != 0))
         return SOAPY_SDR_NOT_SUPPORTED;
 
-    _sdrppClient->startStream();
+    _sdrppClient.client->startStream();
     _stream->active = true;
 
     return 0;
@@ -95,7 +95,7 @@ int SoapySpyServerClient::deactivateStream(
     if((flags != 0) or (timeNs != 0))
         return SOAPY_SDR_NOT_SUPPORTED;
 
-    _sdrppClient->stopStream();
+    _sdrppClient.client->stopStream();
     _stream->active = false;
 
     return 0;
@@ -111,6 +111,8 @@ int SoapySpyServerClient::readStream(
 {
     std::lock_guard<std::mutex> lock(_streamMutex);
 
+    assert(_sdrppClient.bufferQueue);
+
     // As a policy, don't throw.
     if(not stream or (stream != (SoapySDR::Stream*)_stream.get()))
         return SOAPY_SDR_NOT_SUPPORTED;
@@ -125,7 +127,7 @@ int SoapySpyServerClient::readStream(
     if(_currentBuffer.empty())
     {
         const auto timeoutS = static_cast<double>(timeoutUs * 1e6);
-        if(not _bufferQueue.dequeue(timeoutS, _currentBuffer))
+        if(not _sdrppClient.bufferQueue->dequeue(timeoutS, _currentBuffer))
             return SOAPY_SDR_TIMEOUT;
     }
 
