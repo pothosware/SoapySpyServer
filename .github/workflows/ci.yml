@@ -50,6 +50,8 @@ jobs:
           - uses: actions/checkout@v2
           - name: Install dependencies
             run: |
+                sudo apt install python3-mako
+
                 # Build against recent enough VOLK, package's CMake stuff is screwy
                 cd ${{runner.workspace}}
                 git clone https://github.com/gnuradio/volk --recursive -b v2.5.1
@@ -182,7 +184,8 @@ jobs:
                 cmake --install . --config ${{matrix.build_type}}
           - name: Install VOLK
             run: |
-                git clone https://github.com/gnuradio/volk -b v2.5.1
+                pip3 install mako
+                git clone https://github.com/gnuradio/volk --recursive -b v2.5.1
                 mkdir volk\build
                 cd volk\build
                 cmake ${{matrix.cmake_config}} -DCMAKE_INSTALL_PREFIX="$Env:INSTALL_PREFIX" -DCMAKE_BUILD_TYPE=${{matrix.build_type}} ${{github.workspace}}
