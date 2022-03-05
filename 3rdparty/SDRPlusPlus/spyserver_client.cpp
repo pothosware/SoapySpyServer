@@ -1,8 +1,7 @@
 #include <spyserver_client.h>
 #include <volk/volk.h>
+#include <chrono>
 #include <cstring>
-
-using namespace std::chrono_literals;
 
 namespace spyserver {
     SpyServerClientClass::SpyServerClientClass(net::Conn conn, DSPComplexBufferQueue& out): outputQueue(out) {
@@ -56,14 +55,14 @@ namespace spyserver {
     bool SpyServerClientClass::waitForDevInfo(int timeoutMS) {
         std::unique_lock<std::mutex> lck(deviceInfoMtx);
         auto now = std::chrono::system_clock::now();
-        deviceInfoCnd.wait_until(lck, now + (timeoutMS * 1ms), [this]() { return deviceInfoAvailable; });
+        deviceInfoCnd.wait_until(lck, now + std::chrono::milliseconds(timeoutMS), [this]() { return deviceInfoAvailable; });
         return deviceInfoAvailable;
     }
 
     bool SpyServerClientClass::waitForClientSync(int timeoutMS) {
         std::unique_lock<std::mutex> lck(clientSyncMtx);
         auto now = std::chrono::system_clock::now();
-        clientSyncCnd.wait_until(lck, now + (timeoutMS * 1ms), [this]() { return clientSyncAvailable; });
+        clientSyncCnd.wait_until(lck, now + std::chrono::milliseconds(timeoutMS), [this]() { return clientSyncAvailable; });
         return clientSyncAvailable;
     }
 
