@@ -65,10 +65,7 @@ int SoapySpyServerClient::activateStream(
     const size_t numElems)
 {
     std::lock_guard<std::mutex> lock(_streamMutex);
-
-    if(not stream)
-        throw std::invalid_argument("Null stream");
-    if(stream != (SoapySDR::Stream*)_stream.get())
+    if(not validStream(stream))
         throw std::invalid_argument("Invalid stream");
 
     if((flags != 0) or (timeNs != 0) or (numElems != 0))
@@ -86,10 +83,7 @@ int SoapySpyServerClient::deactivateStream(
     const long long timeNs)
 {
     std::lock_guard<std::mutex> lock(_streamMutex);
-
-    if(not stream)
-        throw std::invalid_argument("Null stream");
-    if(stream != (SoapySDR::Stream*)_stream.get())
+    if(not validStream(stream))
         throw std::invalid_argument("Invalid stream");
 
     if((flags != 0) or (timeNs != 0))
@@ -114,11 +108,11 @@ int SoapySpyServerClient::readStream(
     assert(_sdrppClient.bufferQueue);
 
     // As a policy, don't throw.
-    if(not stream or (stream != (SoapySDR::Stream*)_stream.get()))
-        return SOAPY_SDR_NOT_SUPPORTED;
-    if(not buffs or not buffs[0])
+    if(not validStream(stream))
         return SOAPY_SDR_NOT_SUPPORTED;
     if(not _stream->active)
+        return SOAPY_SDR_NOT_SUPPORTED;
+    if(not buffs or not buffs[0])
         return SOAPY_SDR_NOT_SUPPORTED;
 
     // The SpyServer client asychronously adds buffers to a queue as

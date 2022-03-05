@@ -1,5 +1,7 @@
 # Soapy SDR plugin for remotely accessing SpyServer devices 
 
+Derived from Alexandre Rouma's SDR++ [block](https://github.com/AlexandreRouma/SDRPlusPlus/tree/master/source_modules/spyserver_source/src).
+
 ## Build Status
 
 ![Build Status](https://github.com/pothosware/SoapySpyServer/actions/workflows/ci.yml/badge.svg)

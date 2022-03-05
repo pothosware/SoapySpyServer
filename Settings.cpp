@@ -179,7 +179,7 @@ size_t SoapySpyServerClient::getNumChannels(const int direction) const
 SoapySDR::Kwargs SoapySpyServerClient::getChannelInfo(const int direction, const size_t channel) const
 {
     SoapySDR::Kwargs channelInfo;
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+    if(validChannelParams(direction, channel))
     {
         _sdrppClient.syncFields();
         channelInfo["full_control"] = SoapySDR::SettingToString(_sdrppClient.client->clientSync.CanControl > 0);
@@ -193,18 +193,19 @@ SoapySDR::Kwargs SoapySpyServerClient::getChannelInfo(const int direction, const
  * Antenna API
  ******************************************************************/
 
+const std::string SoapySpyServerClient::AntennaName("RX");
+
 std::vector<std::string> SoapySpyServerClient::listAntennas(const int direction, const size_t channel) const
 {
-    return ((direction == SOAPY_SDR_RX) and (channel == 0)) ? std::vector<std::string>{"RX"}
-                                                            : SoapySDR::Device::listAntennas(direction, channel);
+    return validChannelParams(direction, channel) ? std::vector<std::string>{AntennaName}
+                                                  : SoapySDR::Device::listAntennas(direction, channel);
 }
 
 void SoapySpyServerClient::setAntenna(const int direction, const size_t channel, const std::string &name)
 {
-    // For the sake of consistency
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+    if(validChannelParams(direction, channel))
     {
-        if(name != "RX")
+        if(name != AntennaName)
             throw std::invalid_argument("Invalid antenna: "+name);
     }
     else SoapySDR::Device::setAntenna(direction, channel, name);
@@ -212,8 +213,8 @@ void SoapySpyServerClient::setAntenna(const int direction, const size_t channel,
 
 std::string SoapySpyServerClient::getAntenna(const int direction, const size_t channel) const
 {
-    return ((direction == SOAPY_SDR_RX) and (channel == 0)) ? "RX"
-                                                            : SoapySDR::Device::getAntenna(direction, channel);
+    return validChannelParams(direction, channel) ? AntennaName
+                                                  : SoapySDR::Device::getAntenna(direction, channel);
 }
 
 /*******************************************************************
@@ -224,13 +225,13 @@ const std::string SoapySpyServerClient::GainName("Full");
 
 std::vector<std::string> SoapySpyServerClient::listGains(const int direction, const size_t channel) const
 {
-    return ((direction == SOAPY_SDR_RX) and (channel == 0)) ? std::vector<std::string>{GainName}
-                                                            : SoapySDR::Device::listGains(direction, channel);
+    return validChannelParams(direction, channel) ? std::vector<std::string>{GainName}
+                                                  : SoapySDR::Device::listGains(direction, channel);
 }
 
 void SoapySpyServerClient::setGain(const int direction, const size_t channel, const std::string &name, const double value)
 {
-    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == GainName))
+    if(validGainParams(direction, channel, name))
     {
         _sdrppClient.syncFields();
         if(_sdrppClient.client->clientSync.CanControl)
@@ -248,7 +249,7 @@ void SoapySpyServerClient::setGain(const int direction, const size_t channel, co
 
 double SoapySpyServerClient::getGain(const int direction, const size_t channel, const std::string &name) const
 {
-    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == GainName))
+    if(validGainParams(direction, channel, name))
     {
         _sdrppClient.syncFields();
 
@@ -259,7 +260,7 @@ double SoapySpyServerClient::getGain(const int direction, const size_t channel, 
 
 SoapySDR::Range SoapySpyServerClient::getGainRange(const int direction, const size_t channel, const std::string &name) const
 {
-    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == GainName))
+    if(validGainParams(direction, channel, name))
     {
         _sdrppClient.syncFields();
 
@@ -290,7 +291,7 @@ const std::string SoapySpyServerClient::FrequencyName("RF");
 
 void SoapySpyServerClient::setFrequency(const int direction, const size_t channel, const std::string &name, const double frequency, const SoapySDR::Kwargs &args)
 {
-    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == FrequencyName))
+    if(validFrequencyParams(direction, channel, name))
     {
         _sdrppClient.client->setSetting(
             static_cast<uint32_t>(SPYSERVER_SETTING_IQ_FREQUENCY),
@@ -303,7 +304,7 @@ void SoapySpyServerClient::setFrequency(const int direction, const size_t channe
 
 double SoapySpyServerClient::getFrequency(const int direction, const size_t channel, const std::string &name) const
 {
-    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == FrequencyName))
+    if(validFrequencyParams(direction, channel, name))
     {
         _sdrppClient.syncFields();
 
@@ -314,13 +315,13 @@ double SoapySpyServerClient::getFrequency(const int direction, const size_t chan
 
 std::vector<std::string> SoapySpyServerClient::listFrequencies(const int direction, const size_t channel) const
 {
-    return ((direction == SOAPY_SDR_RX) and (channel == 0)) ? std::vector<std::string>{FrequencyName}
-                                                            : SoapySDR::Device::listFrequencies(direction, channel);
+    return validChannelParams(direction, channel) ? std::vector<std::string>{FrequencyName}
+                                                  : SoapySDR::Device::listFrequencies(direction, channel);
 }
 
 SoapySDR::RangeList SoapySpyServerClient::getFrequencyRange(const int direction, const size_t channel, const std::string &name) const
 {
-    if((direction == SOAPY_SDR_RX) and (channel == 0) and (name == FrequencyName))
+    if(validFrequencyParams(direction, channel, name))
     {
         _sdrppClient.syncFields();
 
@@ -338,7 +339,7 @@ SoapySDR::RangeList SoapySpyServerClient::getFrequencyRange(const int direction,
 
 void SoapySpyServerClient::setSampleRate(const int direction, const size_t channel, const double rate)
 {
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+    if(validChannelParams(direction, channel))
     {
         auto sampleRateIter = std::find_if(
             _sampleRates.begin(),
@@ -366,7 +367,7 @@ void SoapySpyServerClient::setSampleRate(const int direction, const size_t chann
 
 double SoapySpyServerClient::getSampleRate(const int direction, const size_t channel) const
 {
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+    if(validChannelParams(direction, channel))
     {
         _sdrppClient.syncFields();
 
@@ -377,7 +378,7 @@ double SoapySpyServerClient::getSampleRate(const int direction, const size_t cha
 
 std::vector<double> SoapySpyServerClient::listSampleRates(const int direction, const size_t channel) const
 {
-    if((direction == SOAPY_SDR_RX) and (channel == 0))
+    if(validChannelParams(direction, channel))
     {
         std::vector<double> sampleRates;
         std::transform(

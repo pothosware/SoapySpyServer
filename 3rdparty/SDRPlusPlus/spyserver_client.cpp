@@ -1,3 +1,4 @@
+#include <SoapySDR/Logger.hpp>
 #include <spyserver_client.h>
 #include <volk/volk.h>
 #include <chrono>
@@ -114,11 +115,9 @@ namespace spyserver {
 
         int size = _this->readSize(_this->receivedHeader.BodySize, _this->readBuf);
         if (size <= 0) {
-            printf("ERROR: Disconnected\n");
+            SoapySDR::log(SOAPY_SDR_INFO, "SpyServer device disconnected");
             return;
         }
-
-        //printf("MSG Proto: 0x%08X, MsgType: 0x%08X, StreamType: 0x%08X, Seq: 0x%08X, Size: %d\n", _this->receivedHeader.ProtocolID, _this->receivedHeader.MessageType, _this->receivedHeader.StreamType, _this->receivedHeader.SequenceNumber, _this->receivedHeader.BodySize);
 
         int mtype = _this->receivedHeader.MessageType & 0xFFFF;
         int mflags = (_this->receivedHeader.MessageType & 0xFFFF0000) >> 16;
@@ -159,16 +158,17 @@ namespace spyserver {
             volk_16i_s32f_convert_32f((float*)output.data(), (int16_t*)_this->readBuf, 32768.0 * gain, sampCount * 2);
             _this->outputQueue.enqueue(std::move(output));
         }
-        else if (mtype == SPYSERVER_MSG_TYPE_INT24_IQ) {
-            printf("ERROR: IQ format not supported\n");
-            return;
-        }
         else if (mtype == SPYSERVER_MSG_TYPE_FLOAT_IQ) {
             int sampCount = _this->receivedHeader.BodySize / sizeof(dsp::complex_t);
             volk::vector<dsp::complex_t> output(sampCount);
             float gain = pow(10, (double)mflags / 20.0);
             volk_32f_s32f_multiply_32f((float*)output.data(), (float*)_this->readBuf, gain, sampCount * 2);
             _this->outputQueue.enqueue(std::move(output));
+        } else if (mtype == SPYSERVER_MSG_TYPE_INT24_IQ) {
+            SoapySDR::log(
+                SOAPY_SDR_FATAL,
+                "SpyServer returned unsupported stream format INT24. We should have caught this.");
+            return;
         }
 
         _this->client->readAsync(sizeof(SpyServerMessageHeader), (uint8_t*)&_this->receivedHeader, dataHandler, _this);

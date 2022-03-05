@@ -5,6 +5,7 @@
 
 #include "spyserver_client.h"
 
+#include <SoapySDR/Constants.h>
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Types.hpp>
 
@@ -71,6 +72,11 @@ public:
      * Channels API
      ******************************************************************/
 
+    inline bool validChannelParams(const int direction, const size_t channel) const
+    {
+        return (direction == SOAPY_SDR_RX) and (channel == 0);
+    }
+
     size_t getNumChannels(const int direction) const;
 
     SoapySDR::Kwargs getChannelInfo(const int direction, const size_t channel) const;
@@ -78,6 +84,11 @@ public:
     /*******************************************************************
      * Stream API
      ******************************************************************/
+
+    inline bool validStream(SoapySDR::Stream* stream)
+    {
+        return (stream == (SoapySDR::Stream*)_stream.get());
+    }
 
     std::vector<std::string> getStreamFormats(const int direction, const size_t channel) const;
 
@@ -112,6 +123,8 @@ public:
      * Antenna API
      ******************************************************************/
 
+    static const std::string AntennaName;
+
     std::vector<std::string> listAntennas(const int direction, const size_t channel) const;
 
     void setAntenna(const int direction, const size_t channel, const std::string &name);
@@ -123,6 +136,11 @@ public:
      ******************************************************************/
 
     static const std::string GainName;
+
+    inline bool validGainParams(const int direction, const size_t channel, const std::string &name) const
+    {
+        return validChannelParams(direction, channel) and (name == GainName);
+    }
 
     std::vector<std::string> listGains(const int direction, const size_t channel) const;
 
@@ -137,6 +155,11 @@ public:
      ******************************************************************/
 
     static const std::string FrequencyName;
+
+    inline bool validFrequencyParams(const int direction, const size_t channel, const std::string &name) const
+    {
+        return validChannelParams(direction, channel) and (name == FrequencyName);
+    }
 
     void setFrequency(const int direction, const size_t channel, const std::string &name, const double frequency, const SoapySDR::Kwargs &args);
 
