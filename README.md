@@ -1,6 +1,7 @@
 # Soapy SDR plugin for remotely accessing SpyServer devices 
 
-Derived from Alexandre Rouma's SDR++ [block](https://github.com/AlexandreRouma/SDRPlusPlus/tree/master/source_modules/spyserver_source/src).
+This Soapy device wraps Alexandre Rouma's SDR++ [block](https://github.com/AlexandreRouma/SDRPlusPlus/tree/master/source_modules/spyserver_source/src) to
+allow access to any SDR exposed via Airspy's [SpyServer](https://airspy.com/directory/).
 
 ## Build Status
 
