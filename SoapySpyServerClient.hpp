@@ -37,7 +37,6 @@ struct SDRPPClient
 struct SoapySpyServerStream
 {
     std::atomic_bool active{false};
-    std::atomic_size_t directAccessBuffer{0}; // Null if not active
 };
 
 class SoapySpyServerClient: public SoapySDR::Device
