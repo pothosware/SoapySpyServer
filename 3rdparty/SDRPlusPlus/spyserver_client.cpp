@@ -76,7 +76,7 @@ namespace spyserver {
     }
 
     void SpyServerClientClass::sendHandshake(std::string appName) {
-        int totSize = sizeof(SpyServerClientHandshake) + appName.size();
+        int totSize = int(sizeof(SpyServerClientHandshake) + appName.size());
         uint8_t* buf = new uint8_t[totSize];
 
         SpyServerClientHandshake* cmdHandshake = (SpyServerClientHandshake*)buf;

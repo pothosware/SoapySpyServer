@@ -25,6 +25,7 @@ include_directories(
 set(libraries Volk::volk)
 
 if(WIN32)
+    add_definitions(-D_WINSOCK_DEPRECATED_NO_WARNINGS)
     list(APPEND libraries
         wsock32
         ws2_32)
