@@ -67,6 +67,8 @@ int SoapySpyServerClient::activateStream(
     std::lock_guard<std::mutex> lock(_streamMutex);
     if(not validStream(stream))
         throw std::invalid_argument("Invalid stream");
+    if(_stream->active)
+        throw std::runtime_error("Stream is already active");
 
     if((flags != 0) or (timeNs != 0) or (numElems != 0))
         return SOAPY_SDR_NOT_SUPPORTED;
@@ -85,6 +87,8 @@ int SoapySpyServerClient::deactivateStream(
     std::lock_guard<std::mutex> lock(_streamMutex);
     if(not validStream(stream))
         throw std::invalid_argument("Invalid stream");
+    if(not _stream->active)
+        throw std::runtime_error("Stream is already inactive");
 
     if((flags != 0) or (timeNs != 0))
         return SOAPY_SDR_NOT_SUPPORTED;
