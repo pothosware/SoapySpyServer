@@ -242,7 +242,7 @@ void SoapySpyServerClient::setGain(const int direction, const size_t channel, co
         }
         else throw std::runtime_error("This device does not allow setting gain.");
     }
-    else SoapySDR::Device::setGain(direction, channel, value);
+    else SoapySDR::Device::setGain(direction, channel, name, value);
 }
 
 double SoapySpyServerClient::getGain(const int direction, const size_t channel, const std::string &name) const
@@ -253,7 +253,7 @@ double SoapySpyServerClient::getGain(const int direction, const size_t channel, 
 
         return static_cast<double>(_sdrppClient.client->clientSync.Gain);
     }
-    else return SoapySDR::Device::getGain(direction, channel);
+    else return SoapySDR::Device::getGain(direction, channel, name);
 }
 
 SoapySDR::Range SoapySpyServerClient::getGainRange(const int direction, const size_t channel, const std::string &name) const
@@ -278,7 +278,7 @@ SoapySDR::Range SoapySpyServerClient::getGainRange(const int direction, const si
         }
 
     }
-    else return SoapySDR::Device::getGainRange(direction, channel);
+    else return SoapySDR::Device::getGainRange(direction, channel, name);
 }
 
 /*******************************************************************
@@ -297,7 +297,7 @@ void SoapySpyServerClient::setFrequency(const int direction, const size_t channe
 
         _sdrppClient.syncFields();
     }
-    else SoapySDR::Device::setFrequency(direction, channel, frequency, args);
+    else SoapySDR::Device::setFrequency(direction, channel, name, frequency, args);
 }
 
 double SoapySpyServerClient::getFrequency(const int direction, const size_t channel, const std::string &name) const
