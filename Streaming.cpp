@@ -124,6 +124,12 @@ int SoapySpyServerClient::readStream(
     // latest buffer, we'll grab the next one here.
     if(_currentBuffer.empty())
     {
+        if(_sdrppClient.bufferQueue->overflow())
+        {
+            _sdrppClient.bufferQueue->resetOverflow();
+            return SOAPY_SDR_OVERFLOW;
+        }
+
         const auto timeoutS = static_cast<double>(timeoutUs * 1e6);
         if(not _sdrppClient.bufferQueue->dequeue(timeoutS, _currentBuffer))
             return SOAPY_SDR_TIMEOUT;

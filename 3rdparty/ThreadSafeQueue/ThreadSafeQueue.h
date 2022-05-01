@@ -1,4 +1,5 @@
 // Copyright (C) 2011 Paul Ilardi (http://github.com/CodePi)
+//               2022 Nicholas Corgan (http://github.com/ncorgan)
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a 
 // copy of this software and associated documentation files (the "Software"),
@@ -29,9 +30,10 @@ class ThreadSafeQueue {
 public:
 
   ThreadSafeQueue() =default;
+  virtual ~ThreadSafeQueue() =default;
 
   // enqueue - supports move, copies only if needed. e.g. q.enqueue(move(obj));
-  void enqueue(T t){
+  virtual void enqueue(T t){
     std::lock_guard<std::mutex> lock(m);
     q.push(std::move(t));
     c.notify_one();
@@ -47,7 +49,7 @@ public:
   }
 
   // dequeue with timeout in seconds
-  bool dequeue(double timeout_sec, T& rVal){
+  virtual bool dequeue(double timeout_sec, T& rVal){
     std::unique_lock<std::mutex> lock(m);
 
     // wait for timeout or value available

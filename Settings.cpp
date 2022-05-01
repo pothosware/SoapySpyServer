@@ -43,7 +43,7 @@ SDRPPClient SoapySpyServerClient::makeSDRPPClient(const SoapySDR::Kwargs &args)
     const auto &port = portIter->second;
 
     SDRPPClient client;
-    client.bufferQueue.reset(new DSPComplexBufferQueue);
+    client.bufferQueue.reset(new DSPComplexBufferQueue(SDRPPClient::MaxQueueSize));
 
     const auto spyServerURL = ParamsToSpyServerURL(host, port);
     SoapySDR::logf(

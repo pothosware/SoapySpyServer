@@ -20,6 +20,7 @@
 
 struct SDRPPClient
 {
+    static constexpr size_t MaxQueueSize = 128;
     static constexpr size_t TimeoutMs = 1000;
 
     std::unique_ptr<DSPComplexBufferQueue> bufferQueue;

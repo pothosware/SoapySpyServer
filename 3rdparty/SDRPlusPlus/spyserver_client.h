@@ -3,10 +3,10 @@
 #include <spyserver_protocol.h>
 #include <dsp/types.h>
 
-#include <ThreadSafeQueue.h>
+#include "CappedSizeQueue.hpp"
 #include <volk/volk_alloc.hh>
 
-using DSPComplexBufferQueue = codepi::ThreadSafeQueue<volk::vector<dsp::complex_t>>;
+using DSPComplexBufferQueue = CappedSizeQueue<volk::vector<dsp::complex_t>>;
 
 /*
  * Originally written by Alexandre Rouma:
