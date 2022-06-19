@@ -1,0 +1,34 @@
+FROM dockcross/ORIGIN_IMAGE
+
+ENV DEFAULT_DOCKCROSS_IMAGE soapy-spyserver-ci-image
+
+# Note: clone -b doesn't work with commits
+ENV MAKO_CO=rel_1_2_0
+ENV SOAPY_CO=soapy-sdr-0.8.0
+ENV VOLK_CO=v2.5.1
+
+RUN \
+    pip install mako
+
+# Build VOLK
+RUN \
+    git clone --recursive https://github.com/gnuradio/volk && \
+    cd volk && \
+    git checkout ${VOLK_CO} && \
+    mkdir build && \
+    cd build && \
+    cmake -DCMAKE_INSTALL_PREFIX=${CROSS_ROOT} .. && \
+    cmake --build . && \
+    cmake --build . --target=install && \
+    cd ../..
+
+# Build SoapySDR
+RUN \
+    git clone https://github.com/pothosware/SoapySDR && \
+    cd SoapySDR && \
+    git checkout ${SOAPY_CO} && \
+    mkdir build && \
+    cd build && \
+    cmake -DCMAKE_INSTALL_PREFIX=${CROSS_ROOT} .. && \
+    cmake --build . && \
+    cmake --build . --target=install

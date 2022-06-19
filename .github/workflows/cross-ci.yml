@@ -1,0 +1,34 @@
+name: Cross-compile CI
+on: [push, pull_request]
+jobs:
+    dockcross:
+        name: Dockcross
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    #- image: android-x86_64
+                    #- image: android-arm64
+                    - image: linux-arm64
+                    - image: linux-ppc64le
+                    # Raspberry Pi
+                    - image: linux-armv6
+                    - image: linux-armv6-lts
+                    - image: linux-armv6-musl
+                    - image: linux-armv7
+                    - image: linux-armv7-lts
+                    # Beaglebone
+                    - image: linux-armv7a
+        steps:
+          - uses: actions/checkout@v2
+          - name: Prepare Docker image
+            run: |
+                sed 's/ORIGIN_IMAGE/${{matrix.image}}/g' docker/dockcross.in > Dockerfile
+                sudo docker build -t soapy-spyserver-ci-image .
+                sudo run soapy-spyserver-ci-image > dockcross-ci-image
+                chmod +x dockcross-ci-image
+          - name: Build SoapySpyServer
+            run: |
+                sudo ./dockcross-ci-image cmake -Bbuild -S.
+                sudo ./dockcross-ci-image cmake --build build
