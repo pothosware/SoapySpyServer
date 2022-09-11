@@ -30,6 +30,8 @@ static std::vector<SoapySDR::Kwargs> findSpyServerClient(const SoapySDR::Kwargs 
         auto &result = results.front();
 
         const auto &devInfo = client.client->devInfo;
+        result["host"] = args.at("host");
+        result["port"] = args.at("port");
         result["device"] = SoapySpyServerClient::DeviceEnumToName(devInfo.DeviceType);
         result["serial"] = std::to_string(devInfo.DeviceSerial);
         result["url"] = SoapySpyServerClient::ParamsToSpyServerURL(args.at("host"), args.at("port"));
