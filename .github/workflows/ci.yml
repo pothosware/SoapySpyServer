@@ -200,7 +200,6 @@ jobs:
             matrix:
                 build_type: [Release, Debug]
                 release: ["12.3", "13.0", "13.1"]
-                #release: ["12.3", "13.1"] # TODO: re-enable 13.0 after Python issue fixed
         steps:
         - uses: actions/checkout@v2
         - uses: vmactions/freebsd-vm@v0
