@@ -232,4 +232,3 @@ jobs:
                   echo "Testing module registration..."
                   echo "----------------------------------"
                   SoapySDRUtil --check=spyserver
-                  ctest --output-on-failure
