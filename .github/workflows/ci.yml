@@ -149,6 +149,7 @@ jobs:
                     # MinGW
                     #
 
+                    # TODO: reenable when Github updates GCC past 11.2.0
                     #- cmake_config: -G "MinGW Makefiles"
                     #  os: windows-2022
                     #  msvc: false
