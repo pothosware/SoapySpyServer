@@ -1,5 +1,6 @@
 #include <utils/networking.h>
 #include <assert.h>
+#include <stdexcept>
 
 namespace net {
 

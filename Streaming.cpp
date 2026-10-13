@@ -11,6 +11,7 @@
 #include <cassert>
 #include <cstring>
 #include <stdexcept>
+#include <ciso646>
 
 std::vector<std::string> SoapySpyServerClient::getStreamFormats(const int direction, const size_t channel) const
 {

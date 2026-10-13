@@ -17,6 +17,7 @@
 #include <mutex>
 #include <string>
 #include <utility>
+#include <ciso646>
 
 struct SDRPPClient
 {

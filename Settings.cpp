@@ -14,6 +14,7 @@
 #include <cmath>
 #include <iterator>
 #include <stdexcept>
+#include <ciso646>
 
 //
 // Non-class utility

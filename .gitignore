@@ -1,3 +1,6 @@
 *.swp
 *~
 *bak
+/build
+/.vscode
+/.history

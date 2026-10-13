@@ -1,17 +1,21 @@
 ########################################################################
 # Project setup
 ########################################################################
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.1...3.10)
 project(SoapySpyServer CXX)
 set(CMAKE_CXX_STANDARD 14)
 
 ########################################################################
 # Find dependencies
 ########################################################################
-find_package(SoapySDR "0.8" NO_MODULE)
-if(NOT SoapySDR_FOUND)
-    message(FATAL_ERROR "Soapy SDR development files not found...")
+find_package(SoapySDR "0.8" NO_MODULE REQUIRED)
+
+get_filename_component(_SoapySDR_ROOT "${SoapySDR_INCLUDE_DIRS}/.." ABSOLUTE)
+message(STATUS "SoapySDR root directory: ${_SoapySDR_ROOT}")
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT AND NOT "${_SoapySDR_ROOT}" STREQUAL "/usr")
+    set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE ${_SoapySDR_ROOT})
 endif()
+
 find_package(Volk REQUIRED)
 
 ########################################################################
